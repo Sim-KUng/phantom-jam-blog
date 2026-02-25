@@ -1,0 +1,1 @@
+"use strict";(globalThis.webpackChunkphantom_jam_blog=globalThis.webpackChunkphantom_jam_blog||[]).push([[1903],{1912(a){a.exports=JSON.parse('{"blogBasePath":"/phantom-jam-blog/blog","blogTitle":"Blog","authorsListPath":"/phantom-jam-blog/blog/authors"}')}}]);
