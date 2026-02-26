@@ -37,7 +37,7 @@ export default function Home() {
   const {siteConfig} = useDocusaurusContext();
   return (
     <Layout
-      title={`Phantom Breakers`}
+      title={`Sim-KUng 블로그`}
       description="강화학습 기반 유령 정체 해소 프로젝트 기술 블로그입니다.">
       <HomepageHeader />
       <main>
