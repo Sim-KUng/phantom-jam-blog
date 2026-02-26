@@ -77,84 +77,46 @@ const config = {
   ],
 
   themeConfig:
-    /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
-    ({
-      // Replace with your project's social card
-      image: 'img/docusaurus-social-card.jpg',
-      colorMode: {
-        respectPrefersColorScheme: true,
-      },
-      navbar: {
-        title: 'My Site',
-        logo: {
-          alt: 'My Site Logo',
-          src: 'img/logo.svg',
+      /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
+      ({
+        // --- 1. 상단바(Navbar) 설정 ---
+        navbar: {
+          title: 'Sim-KUng', // 아까 수정하신 팀 이름
+          logo: {
+            alt: 'Sim-KUng Logo',
+            src: 'img/logo.svg', // 나중에 아이콘 구하시면 여기에!
+          },
+          items: [
+            // 불필요한 Tutorial 글씨를 지우고, 우리가 쓸 '스터디 기록(Docs)'으로 바꿉니다.
+            {
+              type: 'docSidebar',
+              sidebarId: 'tutorialSidebar',
+              position: 'left',
+              label: '스터디 기록', 
+            },
+            // Blog 메뉴도 프로젝트 '주간 회의록' 느낌으로 이름을 바꿉니다. (안 쓰면 이 블록 통째로 삭제)
+            {to: '/blog', label: '주간 회의록', position: 'left'},
+            
+            // 우측의 도쿠사우루스 깃허브 링크를 우리 팀 깃허브 링크로 바꿉니다.
+            {
+              href: 'https://github.com/Sim-KUng/phantom-jam-blog',
+              label: 'GitHub',
+              position: 'right',
+            },
+          ],
         },
-        items: [
-          {
-            type: 'docSidebar',
-            sidebarId: 'tutorialSidebar',
-            position: 'left',
-            label: 'Tutorial',
-          },
-          {to: '/blog', label: 'Blog', position: 'left'},
-          {
-            href: 'https://github.com/facebook/docusaurus',
-            label: 'GitHub',
-            position: 'right',
-          },
-        ],
-      },
-      footer: {
-        style: 'dark',
-        links: [
-          {
-            title: 'Docs',
-            items: [
-              {
-                label: 'Tutorial',
-                to: '/docs/intro',
-              },
-            ],
-          },
-          {
-            title: 'Community',
-            items: [
-              {
-                label: 'Stack Overflow',
-                href: 'https://stackoverflow.com/questions/tagged/docusaurus',
-              },
-              {
-                label: 'Discord',
-                href: 'https://discordapp.com/invite/docusaurus',
-              },
-              {
-                label: 'X',
-                href: 'https://x.com/docusaurus',
-              },
-            ],
-          },
-          {
-            title: 'More',
-            items: [
-              {
-                label: 'Blog',
-                to: '/blog',
-              },
-              {
-                label: 'GitHub',
-                href: 'https://github.com/facebook/docusaurus',
-              },
-            ],
-          },
-        ],
-        copyright: `Copyright © ${new Date().getFullYear()} My Project, Inc. Built with Docusaurus.`,
-      },
-      prism: {
-        theme: prismThemes.github,
-        darkTheme: prismThemes.dracula,
-      },
-    }),
+
+        // --- 2. 하단바(Footer) 설정 ---
+        footer: {
+          style: 'dark',
+          links: [], // 도쿠사우루스 디스코드, 트위터 등 잡다한 링크들을 빈 배열([])로 만들어 싹 날려버립니다!
+          
+          // 하단 카피라이트(저작권) 문구를 우리 팀과 학교 이름으로 바꿉니다.
+          copyright: `Copyright © ${new Date().getFullYear()} Sim-KUng (Konkuk Univ). Built with Docusaurus.`,
+        },
+        
+        // (참고: 이 아래에 prism 관련 코드 등이 있다면 그대로 두시면 됩니다)
+      }),
 };
 
 export default config;
