@@ -1,0 +1,29 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+      # main 브랜치에 코드가 push될 때마다 이 로봇이 자동으로 실행됩니다!
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: yarn
+
+      - name: 패키지 설치
+        run: yarn install
+
+      - name: 블로그 빌드
+        run: yarn build
+
+      - name: 깃허브 페이지로 배포
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./build
