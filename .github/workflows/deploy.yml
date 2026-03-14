@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      # main 브랜치에 코드가 push될 때마다 이 로봇이 자동으로 실행됩니다!
 
 jobs:
   deploy:
@@ -14,13 +13,13 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 18
-          cache: yarn
+          cache: npm  # <-- yarn에서 npm으로 변경!
 
       - name: 패키지 설치
-        run: yarn install
+        run: npm install  # <-- npm install로 변경!
 
       - name: 블로그 빌드
-        run: yarn build
+        run: npm run build  # <-- npm run build로 변경!
 
       - name: 깃허브 페이지로 배포
         uses: peaceiris/actions-gh-pages@v3
