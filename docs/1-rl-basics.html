@@ -10,7 +10,7 @@
 
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.13.24/dist/katex.min.css" integrity="sha384-odtC+0UGzzFL/6PNoE8rX/SPcQDXBJ+uRepguP4QkPCm2rmk5f9Ilyo8CQIy8VQS" crossorigin="anonymous"><link rel="stylesheet" href="/phantom-jam-blog/assets/css/styles.9f7dd1dd.css">
-<script src="/phantom-jam-blog/assets/js/runtime~main.adeb6ca3.js" defer="defer"></script>
+<script src="/phantom-jam-blog/assets/js/runtime~main.5a969189.js" defer="defer"></script>
 <script src="/phantom-jam-blog/assets/js/main.dddf23cd.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -28,12 +28,12 @@
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-주요-구성-요소">2. 주요 구성 요소<a href="#2-주요-구성-요소" class="hash-link" aria-label="Direct link to 2. 주요 구성 요소" title="Direct link to 2. 주요 구성 요소" translate="no">​</a></h2>
 <div align="center"><p><img decoding="async" loading="lazy" alt="1-1" src="/phantom-jam-blog/assets/images/1-1-9a5def0543e1752ea9e239183033862d.png" width="617" height="238" class="img_ev3q"></p></div>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-1-agent-에이전트">2-1. Agent (에이전트)<a href="#2-1-agent-에이전트" class="hash-link" aria-label="Direct link to 2-1. Agent (에이전트)" title="Direct link to 2-1. Agent (에이전트)" translate="no">​</a></h3>
-<p>: Environment(환경) 속에서 State(상태)를 Observation(관찰)하고, 자신의 Policy(정책)에 따라 판단하여 Action(행동)을 내리며, 그 결과로 받는 Reward(보상)을 통해 스스로 학습해 나가는 주체!
--&gt; Agent의 목표는 Return(누적 보상)을 최대화하는 것.
-(이해가 되지 않아도 걱정 마세요. 아래에 모든 용어 설명이 이루어질 겁니다!)</p>
+<p>: Environment(환경) 속에서 State(상태)를 Observation(관찰)하고, 자신의 Policy(정책)에 따라 판단하여 Action(행동)을 내리며, 그 결과로 받는 Reward(보상)을 통해 스스로 학습해 나가는 주체!<br>
+<!-- -->-&gt; Agent의 목표는 Return(누적 보상)을 최대화하는 것.</p>
+<p>(이해가 되지 않아도 걱정 마세요. 아래에 모든 용어 설명이 이루어질 겁니다!)</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="2-2-environment-환경">2-2. Environment (환경)<a href="#2-2-environment-환경" class="hash-link" aria-label="Direct link to 2-2. Environment (환경)" title="Direct link to 2-2. Environment (환경)" translate="no">​</a></h3>
-<p>: Agent(에이전트)가 상호작용하는 세계
--&gt; 이때, 환경은 에이전트의 행동에 따라 변화하나, 스스로 변화하기도 함.</p>
+<p>: Agent(에이전트)가 상호작용하는 세계<br>
+<!-- -->-&gt; 이때, 환경은 에이전트의 행동에 따라 변화하나, 스스로 변화하기도 함.</p>
 <blockquote>
 <p>Agent는 Environment로부터 reward 신호를 인지하는데, 이 신호는 현재 세계 상태가 얼마나 좋거나 나쁜 지를 나타내는 수치</p>
 </blockquote>
@@ -193,12 +193,12 @@
 <p><strong>예시:</strong> &quot;어떤 타이밍에 차선을 바꾸고 감속해야 도로 전체의 정체가 가장 완벽하게 해소되는가?&quot;에 대한 절대적인 정답 알고리즘을 찾아내는 전체 프로젝트의 목표와 같습니다.</p>
 </li>
 <li class="">
-<p><strong>수식:</strong> 기대 수익률 J(π)를 최대화하는 최적의 정책 π*를 찾습니다.</p>
+<p><strong>수식:</strong> 기대 수익률 <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>J</mi><mo stretchy="false">(</mo><mi>π</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">J(π)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em"></span><span class="mord mathnormal" style="margin-right:0.09618em">J</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.03588em">π</span><span class="mclose">)</span></span></span></span>를 최대화하는 최적의 정책 π*를 찾습니다.</p>
 </li>
 </ul>
 <span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi>π</mi><mo>∗</mo><mo>=</mo><mi>a</mi><mi>r</mi><mi>g</mi><mi>m</mi><mi>a</mi><msub><mi>x</mi><mi>π</mi></msub><mi>J</mi><mo stretchy="false">(</mo><mi>π</mi><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">π* = arg max_π J(π)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.4653em"></span><span class="mord mathnormal" style="margin-right:0.03588em">π</span><span class="mord">∗</span><span class="mspace" style="margin-right:0.2778em"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em"></span></span><span class="base"><span class="strut" style="height:1em;vertical-align:-0.25em"></span><span class="mord mathnormal">a</span><span class="mord mathnormal" style="margin-right:0.02778em">r</span><span class="mord mathnormal" style="margin-right:0.03588em">g</span><span class="mord mathnormal">ma</span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em"><span class="pstrut" style="height:2.7em"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.03588em">π</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em"><span></span></span></span></span></span></span><span class="mord mathnormal" style="margin-right:0.09618em">J</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right:0.03588em">π</span><span class="mclose">)</span></span></span></span></span>
 <ul>
-<li class=""><strong>코드 (Python):</strong> <code>learn</code> 함수를 호출하는 순간, 이 거대한 최적화 수학 문제가 백그라운드에서 풀리기 시작합니다.<!-- -->
+<li class=""><strong>코드 (Python):</strong> <code>learn</code> 함수를 호출하게 되면, 해당 최적화 수학 문제가 백그라운드에서 풀리기 시작합니다.<!-- -->
 <div class="language-python codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-python codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token plain">model</span><span class="token punctuation" style="color:rgb(199, 146, 234)">.</span><span class="token plain">learn</span><span class="token punctuation" style="color:rgb(199, 146, 234)">(</span><span class="token plain">total_timesteps</span><span class="token operator" style="color:rgb(137, 221, 255)">=</span><span class="token number" style="color:rgb(247, 140, 108)">20000</span><span class="token punctuation" style="color:rgb(199, 146, 234)">)</span><br></span></code></pre></div></div>
 </li>
 </ul>
