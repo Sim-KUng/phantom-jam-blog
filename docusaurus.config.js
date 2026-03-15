@@ -71,6 +71,12 @@ const config = {
   themeConfig:
       /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
       ({
+        docs: {
+          sidebar: {
+            hideable: true,
+            autoCollapseCategories: true,
+          }
+        },
         // --- 1. 상단바(Navbar) 설정 ---
         navbar: {
           title: 'Sim-KUng', // 아까 수정하신 팀 이름
