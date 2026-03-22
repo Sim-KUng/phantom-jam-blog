@@ -133,7 +133,7 @@ function StudyRoadmap() {
 const TeamData = [
   {
     name: '김서진',
-    role: 'Study',
+    role: 'Study Member',
     description: '.',
     github: 'https://github.com/seojin235', // 본인 깃허브 주소
     avatar: 'https://github.com/seojin235.png', // 주소 뒤에 .png를 붙이면 프sa 자동 연동!
@@ -147,7 +147,7 @@ const TeamData = [
   },
   {
     name: '박상현',
-    role: 'Study',
+    role: 'Study Member',
     description: '.',
     github: 'https://github.com/geosang122',
     avatar: 'https://github.com/geosang122.png',
