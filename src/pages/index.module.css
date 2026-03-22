@@ -21,3 +21,24 @@
   align-items: center;
   justify-content: center;
 }
+
+
+.logoWrapper {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2rem; /* 로고와 타이틀 사이 간격 */
+}
+
+.heroLogo {
+  height: 120px; /* 로고 높이 조절 */
+  width: auto;
+  /* 만약 다크모드에서 로고 색이 안 보이면 아래 filter 주석 해제해서 하얗게 반전시켜 */
+  /* filter: brightness(0) invert(1); */
+}
+
+/* 모바일 화면 대응 */
+@media screen and (max-width: 996px) {
+  .heroLogo {
+    height: 80px;
+  }
+}

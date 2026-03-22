@@ -4,9 +4,9 @@ import rehypeKatex from 'rehype-katex';
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
-  title: 'My Site',
-  tagline: 'Dinosaurs are cool',
-  favicon: 'img/favicon.ico',
+  title: 'Sim:KUng!', // 1. 'My Site'로 되어있던 걸 팀 이름으로 변경!
+  tagline: '강화학습 기반 자율주행 시뮬레이션 연구', // (선택) 마우스 올렸을 때 뜨는 설명
+  favicon: 'img/logo.png',
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
   future: {
@@ -82,7 +82,7 @@ const config = {
           title: 'Sim-KUng', // 아까 수정하신 팀 이름
           logo: {
             alt: 'Sim-KUng Logo',
-            src: 'img/logo.svg', // 나중에 아이콘 구하시면 여기에!
+            src: 'img/logo.png', // 나중에 아이콘 구하시면 여기에!
           },
           items: [
             // 불필요한 Tutorial 글씨를 지우고, 우리가 쓸 '스터디 기록(Docs)'으로 바꿉니다.
@@ -90,10 +90,8 @@ const config = {
               type: 'docSidebar',
               sidebarId: 'tutorialSidebar',
               position: 'left',
-              label: '스터디 기록', 
+              label: 'Study Logs', // 'Docs' 대신 'Study Logs'로 변경
             },
-            // Blog 메뉴도 프로젝트 '주간 회의록' 느낌으로 이름을 바꿉니다. (안 쓰면 이 블록 통째로 삭제)
-            {to: '/blog', label: '주간 회의록', position: 'left'},
             
             // 우측의 도쿠사우루스 깃허브 링크를 우리 팀 깃허브 링크로 바꿉니다.
             {
