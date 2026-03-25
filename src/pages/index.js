@@ -61,11 +61,18 @@ const RoadmapData = [
     isActive: true, // 작성 완료
   },
   {
-    week: 'Week 2',
+    week: 'Week 2 - Part 1',
     title: '커스텀 환경 구축 및 학습 세팅',
     description: 'highway-env를 활용한 사용자 정의 환경 구성 및 PPO 에이전트 학습 준비',
-    link: '#', 
-    isActive: false, // 아직 미작성 (버튼 비활성화)
+    link: '/docs/week2/env-setup', 
+    isActive: true,
+  },
+  {
+    week: 'Week 2 - Part 2',
+    title: '실험 계획서 문서화',
+    description: '실험 계획 확립 후 기록을 위한 문서화 작업',
+    link: '/docs//week2/experiment-plan', 
+    isActive: true,
   },
 ];
 
