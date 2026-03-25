@@ -58,3 +58,21 @@ pip install --upgrade pip
 pip install -r requirements.txt
 # 위 명령어는 제가 requirements.txt에 미리 라이브러리를 정리해둬서 가능한 명령어 입니다..!
 ```
+
+### 3-3. 작업 재개 시 가상환경 다시 켜기 (필수)
+터미널을 껐다 켜거나 새로운 창을 열면 가상환경이 해제됩니다. 코드를 실행하거나 패키지를 설치하기 전에는 **반드시 아래 명령어를 입력하여 터미널 입력창 맨 앞에 `(venv)`가 표시되는지 확인**해야 합니다.
+
+```bash
+# Windows (명령 프롬프트/PowerShell)
+venv\Scripts\activate
+
+# Windows (Git Bash) 또는 Mac/Linux
+source venv/Scripts/activate
+```
+
+### 3-4. 환경 테스트 실행
+가상환경이 켜진 상태((venv))에서, 터미널에 아래 명령어를 입력하여 제공된 테스트 스크립트를 실행합니다.
+
+```bash
+python test_env.py
+```
