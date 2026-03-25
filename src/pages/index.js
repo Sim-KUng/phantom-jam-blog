@@ -71,7 +71,7 @@ const RoadmapData = [
     week: 'Week 2 - Part 2',
     title: '실험 계획서 문서화',
     description: '실험 계획 확립 후 기록을 위한 문서화 작업',
-    link: '/docs//week2/experiment-plan', 
+    link: '/docs/week2/experiment-plan', 
     isActive: true,
   },
 ];

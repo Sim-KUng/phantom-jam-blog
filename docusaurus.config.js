@@ -44,7 +44,7 @@ const config = {
         docs: {
           sidebarPath: './sidebars.js',
           remarkPlugins: [remarkMath],
-          rehypePlugins: [rehypeKatex],
+          rehypePlugins: [[rehypeKatex, {strict:false}]],
         },
         blog: {
           showReadingTime: true,
