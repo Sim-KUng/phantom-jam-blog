@@ -81,6 +81,13 @@ const RoadmapData = [
     link: '/docs/week3/baseline-setup', 
     isActive: true,
   },
+  {
+    week: 'Week 4',
+    title: 'State & Action 설계',
+    description: '강화학습 에이전트의 관측 상태(State) 및 이산 행동(Action) 정의와 로깅 Wrapper 구축',
+    link: '/docs/week4/state-action-design', 
+    isActive: false,
+  },
 ];
 
 // --- 3. 로드맵 섹션 컴포넌트 (세로 리스트 형태) ---
