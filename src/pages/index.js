@@ -79,7 +79,7 @@ const RoadmapData = [
     title: '베이스라인 및 Colab 세팅',
     description: '베이스라인 시뮬레이션 및 Colab 이원화 파이프라인 구축',
     link: '/docs/week3/baseline-setup', 
-    isActive: false,
+    isActive: true,
   },
 ];
 
