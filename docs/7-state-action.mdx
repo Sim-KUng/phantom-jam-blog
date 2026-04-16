@@ -6,7 +6,9 @@ sidebar_label: "7. State & Action 설계"
 description: "강화학습 에이전트의 2D Kinematics Observation(State) 행렬과 5가지 이산형 행동(Action) 정의, 그리고 로깅 Wrapper 클래스 구축"
 ---
 
-# 1. 강화학습 에이전트의 '눈'과 '손발' 설계
+# State & Action
+
+## 1. 강화학습 에이전트의 '눈'과 '손발' 설계
 
 베이스라인 환경 구축에 이어, 이번 주차에는 강화학습 에이전트(PPO)가 환경을 인식하고 상호작용할 수 있도록 관측 상태(State)와 행동(Action) 공간을 정의했습니다. 에이전트가 복잡한 다차선 도로 상황을 효율적으로 학습할 수 있도록 데이터를 정밀하게 가공하는 데 집중했습니다.
 
@@ -36,7 +38,7 @@ description: "강화학습 에이전트의 2D Kinematics Observation(State) 행�
 
 ---
 
-# 2. 시공간 다이어그램용 Logging Wrapper 구축
+## 2. 시공간 다이어그램용 Logging Wrapper 구축
 
 향후 10주 차에 예정된 '시공간 다이어그램(Time-Space Diagram)' 시각화를 대비하여, 매 스텝마다 전체 차량의 궤적(Trajectory)과 속도 데이터를 추출하는 로직을 고도화했습니다.
 
@@ -46,7 +48,7 @@ description: "강화학습 에이전트의 2D Kinematics Observation(State) 행�
 
 ---
 
-# 3. 환경 디버깅 및 프로젝트 폴더 구조 리팩토링
+## 3. 환경 디버깅 및 프로젝트 폴더 구조 리팩토링
 
 ### 3-1. OpenAI Gym 인터페이스 통신 테스트
 설계된 환경을 디버깅하기 위해 무작위 행동(`env.action_space.sample()`)을 에이전트에게 지시했습니다. 고밀도 환경(차량 60대) 특성상 에이전트가 무작위로 핸들을 꺾자마자 주변 차량과 충돌하여 에피소드가 즉시 종료(`Terminated=True`)되는 것을 확인했습니다.

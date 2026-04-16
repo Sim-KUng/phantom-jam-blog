@@ -1,0 +1,95 @@
+---
+id: 8-multi-objective-reward
+slug: /week5/reward-function-design
+title: "[5주차] 유령 정체 해소를 위한 다중 목표 보상 함수(Reward Function) 설계"
+sidebar_label: "8. Reward 함수 설계"
+description: "에이전트의 이기적 주행을 넘어 전체 교통 흐름을 개선하는 이타적 보상(Global Reward) 수식 및 구현"
+---
+
+# 보상 함수 설계
+
+## 1. 보상 함수(Reward Function) 설계의 철학
+
+강화학습 에이전트가 어떤 주행 전략을 수립할지는 우리가 부여하는 보상 함수의 논리적 설계에 달려 있습니다. 특히 '유령 정체(Phantom Jam) 해소'라는 목표를 달성하기 위해서는 에이전트가 자신의 속도만 높이는 이기적 주행(Selfish Driving)을 넘어, 전체 흐름을 개선하는 **이타적 주행(Altruistic Driving)** 을 하도록 유도해야 합니다.
+
+이를 위해 5주 차에서는 4가지 세부 목표를 가진 다중 목표 보상 함수를 설계했습니다.
+
+---
+
+## 2. 다중 목표 보상 수식 정의
+
+최종 보상 $R_{total}$은 각 성분 보상에 가중치($w$)를 곱하여 합산하는 스칼라화(Scalarization) 방식을 채택했습니다.
+  
+
+$$R_{total} = w_s R_{speed} + w_c R_{collision} + w_l R_{lane\_change} + w_g R_{global}$$
+
+### 2-1. 기초 보상 (Local Reward)
+에이전트의 기본적인 생존과 주행 성능을 보장합니다.
+* **속도 유지 보상 ($R_{speed}$):** 목표 속도($v_{target}$)에 근접할수록 높은 점수를 부여합니다.  
+
+  $$R_{speed} = \begin{cases} \frac{v_{ego}}{v_{target}} & \text{if not crashed} \\ 0 & \text{if crashed} \end{cases}$$
+* **충돌 페널티 ($R_{collision}$):** 사고 발생 시 강력한 음수 보상을 주어 학습 초기부터 충돌을 피하게 합니다.  
+
+  $$R_{collision} = \begin{cases} -1 & \text{if crashed} \\ 0 & \text{otherwise} \end{cases}$$
+
+### 2-2. 행동 페널티 (Action Penalty)
+학습 과정에서 흔히 발생하는 '얌체 운전(Local Minima)'을 방지합니다.
+* **차선 변경 페널티 ($R_{lane\_change}$):** 불필요한 차선 변경이 오히려 뒤차의 급정거를 유발하므로, 차선 변경 행동(Action 0, 2) 선택 시 소폭의 감점을 부여합니다.  
+
+  $$R_{lane\_change} = \begin{cases} -1 & \text{if action} \in \{LANE\_LEFT, LANE\_RIGHT\} \\ 0 & \text{otherwise} \end{cases}$$
+
+### 2-3. 이타적 보상 (Global Reward) - 핵심 로직
+이번 프로젝트의 핵심 가설을 증명하는 장치입니다. 에이전트 후방의 교통 흐름을 보상에 반영합니다.
+* **후방 차량 평균 속도 보상 ($R_{global}$):** 에이전트 기준 후방 100m 이내에 존재하는 차량($N$)들의 평균 속도를 계산합니다.  
+
+  $$R_{global} = \frac{1}{N} \sum_{i=1}^{N} \frac{v_{rear, i}}{v_{target}}$$
+
+---
+
+## 3. 코드 구현: PhantomJamRewardWrapper
+
+기존의 `highway-env`에서 제공하는 보상 기능은 $R_{global}$과 같은 복잡한 연산을 지원하지 않으므로, 환경을 래핑하여 보상을 직접 재계산하는 커스텀 로직을 구현했습니다.
+
+```python
+def _calculate_custom_reward(self, action):
+    ego = self.env.unwrapped.controlled_vehicles[0]
+    vehicles = self.env.unwrapped.road.vehicles
+    
+    # 가중치 설정
+    w_speed, w_col, w_lane, w_global = 1.0, 5.0, 0.2, 1.5
+    
+    # 1. 기초 보상 및 페널티
+    r_collision = -1.0 if ego.crashed else 0.0
+    r_speed = min(ego.speed / 25.0, 1.0) if not ego.crashed else 0.0
+    r_lane_change = -1.0 if action in [0, 2] else 0.0
+    
+    # 2. Global Reward (후방 차량 속도 추출)
+    rear_speeds = [v.speed for v in vehicles if 0 < (ego.position[0] - v.position[0]) < 100]
+    r_global = (sum(rear_speeds) / len(rear_speeds) / 25.0) if rear_speeds else 0.0
+
+    return (w_speed * r_speed) + (w_col * r_collision) + (w_lane * r_lane_change) + (w_global * r_global)
+```
+
+---
+
+## 4. 검증 및 수치 분석 (Case Study)
+
+디버깅 과정에서 흥미로운 데이터 포인트를 발견했습니다. 에이전트가 충돌하여 종료된 특정 스텝의 보상 값이 **`-3.885`** 로 집계되었습니다.
+
+
+* **분석:** 충돌 페널티 $-5.0$점이 부여되었음에도 불구하고, 후방 차량들이 원활하게 주행 중이었기에 $R_{global}$ 보상이 약 $+1.115$점 추가되어 최종 값이 상쇄된 결과입니다. 
+* **결론:** 이 수치는 에이전트가 자신의 안전(충돌 방지)뿐만 아니라 도로 전체의 효율성을 실시간으로 점수화하여 인식하고 있음을 증명합니다.
+
+이러한 다중 목표 보상 체계는 향후 PPO 에이전트가 **'충격을 흡수하는 완충지대(Buffer)'** 역할을 스스로 학습하게 만드는 강력한 기폭제가 될 것입니다.
+
+---
+
+### 보상 함수 시뮬레이터 (Reward Calculator)
+
+작성하신 보상 함수의 가중치가 실제 에이전트의 점수에 어떤 영향을 주는지 직관적으로 이해하기 위해 만든 시뮬레이터입니다. 가중치 슬라이더를 조절하며 다양한 주행 시나리오에서의 최종 보상 변화를 확인해 보세요.
+
+강화학습 보상 설계는 이론적 수식도 중요하지만, 각 가중치의 비율에 따라 에이전트의 '성격'이 결정됩니다. 예를 들어, `Global Weight`를 높이면 에이전트는 자신은 조금 천천히 가더라도 뒤차를 위해 길을 터주는 선비 같은 운전을 배우게 됩니다.
+
+```json?chameleon
+{"component":"LlmGeneratedComponent","props":{"height":"650px","prompt":"Create an interactive Reward Function Simulator for a reinforcement learning project. The user should be able to adjust four weights (w_speed, w_collision, w_lane_change, w_global) using sliders. \n\nInitial values: w_speed=1.0, w_collision=5.0, w_lane_change=0.2, w_global=1.5. \n\nProvide a 'Scenario' selector with the following presets:\n1. 'Fast & Steady': ego_speed=25, crashed=false, lane_changed=false, rear_avg_speed=25\n2. 'Unnecessary Lane Change': ego_speed=25, crashed=false, lane_changed=true, rear_avg_speed=25\n3. 'Crash with Good Flow': ego_speed=0, crashed=true, lane_changed=false, rear_avg_speed=20\n4. 'Traffic Smoothing (Altruistic)': ego_speed=15, crashed=false, lane_changed=false, rear_avg_speed=23\n\nThe widget should calculate and display:\n- The individual reward components (R_speed, R_collision, R_lane, R_global) based on the chosen scenario.\n- The final weighted total reward.\n- A simple bar chart or breakdown showing the contribution of each weighted component to the total. Use a vertical layout for controls and results. Ensure all labels are in Korean (속도 보상 가중치, 충돌 페널티 가중치, 차선 변경 가중치, 글로벌 보상 가중치, 시나리오 선택, 최종 보상 합계).","id":"im_12b7b002427344f0"}}
+```
