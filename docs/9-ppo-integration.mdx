@@ -1,0 +1,74 @@
+---
+id: 9-ppo-integration-and-testing
+slug: /week6/ppo-integration
+title: "[6주차] Stable-Baselines3 PPO 모델 연동 및 학습 파이프라인 구축"
+sidebar_label: "9. PPO 모델 연동 및 테스트"
+description: "커스텀 다차선 환경과 PPO 알고리즘의 연동, 신경망(MLP) 구조 설계, 그리고 규격 불일치(Space Mismatch) 에러 트러블슈팅"
+---
+
+# 1. PPO 알고리즘 연동 및 신경망(MLP) 구조 설계
+
+지난 5주 동안 치열하게 구축한 '유령 정체 환경'과 '다중 목표 보상 함수' 위에 드디어 두뇌를 얹을 차례입니다. 이번 주차에는 파이썬(Python) 환경에서 가장 안정적인 성능을 자랑하는 강화학습 라이브러리인 **Stable-Baselines3(SB3)**의 PPO(Proximal Policy Optimization) 알고리즘을 도입했습니다.
+
+### 1-1. 네트워크 아키텍처 (net_arch) 세팅
+에이전트가 환경으로부터 받아오는 상태(State) 데이터는 주변 15대 차량의 5가지 피처(존재 여부, x, y, vx, vy)를 담은 $15 \times 5$ 행렬입니다. 
+SB3의 `MlpPolicy`는 이 2차원 행렬을 내부적으로 평탄화(Flatten)하여 75차원의 1차원 벡터로 처리합니다. 주변의 복잡한 차량 동태를 충분히 학습할 수 있도록, Policy Network와 Value Network 모두 은닉층(Hidden Layer) 노드를 `[256, 256]`으로 넉넉하게 설정했습니다.
+
+```python
+# 신경망 구조 정의: 2개의 은닉층, 각각 256개 노드
+policy_kwargs = dict(net_arch=dict(pi=[256, 256], vf=[256, 256]))
+
+# PPO 하이퍼파라미터 초기화
+model = PPO(
+    policy="MlpPolicy",
+    env=env,
+    learning_rate=3e-4,
+    n_steps=512, # 초기 테스트용으로 업데이트 주기 단축
+    batch_size=64,
+    gamma=0.99,
+    policy_kwargs=policy_kwargs,
+    tensorboard_log="./logs/tensorboard/"
+)
+```
+
+---
+
+# 2. 트러블슈팅: Observation Space 규격 불일치 에러
+
+초기 1000 스텝 학습을 시도하는 과정에서 다음과 같은 치명적인 에러를 마주했습니다.
+
+> `ValueError: could not broadcast input array from shape (15,5) into shape (5,5)`
+
+
+**[원인 분석]**
+`highway-env`는 초기화 시 기본적으로 차량 5대 기준의 $5 \times 5$ 관측 공간을 생성합니다. 이후 `configure()`를 통해 차량을 15대로 늘렸지만, SB3 모델은 학습 버퍼를 할당할 때 변경된 설정이 아닌 초기 규격($5 \times 5$)을 참조하여 메모리를 할당하기 때문에 실제 데이터($15 \times 5$)가 들어오자 충돌이 발생한 것입니다.
+
+**[해결 방법]**
+환경 설정을 변경한 직후 `env.reset()`을 명시적으로 호출하여 OpenAI Gym의 Observation Space 규격을 새로운 설정에 맞게 강제 동기화(새로고침)해주었습니다.
+
+```python
+def create_phantom_jam_env():
+    # ... 환경 설정 코드 ...
+    
+    # 핵심 해결책: 변경된 Config를 바탕으로 Observation Space 새로고침
+    env.reset() 
+    
+    return PhantomJamRewardWrapper(env)
+```
+이 한 줄의 코드로 규격 불일치 문제를 깔끔하게 해결하고 정상적인 학습 루프에 진입할 수 있었습니다.
+
+---
+
+# 3. 텐서보드(TensorBoard) 로깅 및 초기 학습 검증
+
+에러 디버깅 후 1000 스텝의 소규모 에피소드를 실행했습니다. 짧은 학습량이지만 우리가 설계한 보상 체계가 제대로 작동하는지 확인하는 것이 주 목적입니다.
+
+<div align="center">
+![9-2](/img/9-2.png)
+  <p><em>rollout/ep_rew_mean graph</em></p>
+</div>
+
+텐서보드를 통해 `ep_rew_mean`(에피소드당 평균 보상) 지표가 정상적으로 기록되는 것을 확인했습니다. 또한, 저장된 모델(`ppo_phantom_jam_test.zip`)을 불러와 시뮬레이터에 올려본 결과, 에이전트가 액션을 취하고 충돌에 대한 페널티를 받아 에피소드를 종료하는 전체 파이프라인이 에러 없이 구동됨을 검증했습니다.
+
+성공적인 파이프라인 개통을 마쳤으므로, 다음 주차부터는 학습 스텝(Timesteps)을 대폭 늘려 본격적인 PPO 모델 고도화에 돌입할 예정입니다.
+```
