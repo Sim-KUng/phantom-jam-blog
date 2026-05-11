@@ -1,0 +1,714 @@
+---
+id: 10-realtime-monitoring
+slug: /week10/realtime-monitoring
+title: "[7주차] 2차선 PPO 본 학습 실행 및 TensorBoard 실시간 모니터링"
+sidebar_label: "10. PPO 본 학습 & TensorBoard"
+description: "2차선 highway-env 환경에서 PPO 본 학습을 실행하고, TensorBoard로 Episode Reward, 충돌률, 차선 변경 비율, 평균 속도를 모니터링한 과정 정리"
+---
+
+# PPO 본 학습 및 TensorBoard 실시간 모니터링
+
+지난 단계까지는 `highway-env` 환경과 PPO 모델이 정상적으로 연결되는지 확인하는 것이 목표였습니다. 기존 `train.py`에서는 `week5_env_wrapper.py`에서 만든 커스텀 보상 환경을 불러와 1000 step 정도만 짧게 학습시키고, 모델이 정상적으로 저장되는지 확인했습니다.
+
+이번 10주차에서는 단순 연결 테스트를 넘어, **2차선 환경에서 PPO 에이전트를 본격적으로 학습**시키는 구조를 만들었습니다. 이를 위해 기존 코드를 직접 덮어쓰기보다, 본 학습 전용 파일을 새로 분리했습니다.
+
+💡 info 이번 주차의 핵심 목표
+2차선 도로 환경에서 PPO 에이전트를 수만 step 이상 학습시키고, TensorBoard를 통해 Episode Reward, 충돌률, 차선 변경 비율, 평균 속도를 실시간으로 확인하는 것입니다.
+
+---
+
+## 1. 이번 주차에 추가한 파일 구조
+
+10주차에서는 기존 5~6주차 코드를 보존하면서, 본 학습용 파일 3개를 새로 추가했습니다.
+
+```text
+src/
+├── week5_env_wrapper.py        # 기존 커스텀 보상 환경
+├── train.py                    # 기존 1000 step 초기 학습 테스트
+├── test.py                     # 기존 테스트용 실행 파일
+│
+├── week10_env_wrapper.py       # 10주차 본 학습용 환경 Wrapper
+├── train_week10_ppo.py         # 10주차 PPO 본 학습 실행 파일
+└── test_week10_model.py        # 학습된 모델 렌더링 테스트 파일
+```
+
+기존 `train.py`는 1000 step만 실행하는 초기 확인용 코드이기 때문에, 본 학습 코드를 바로 덮어쓰지 않았습니다. 이렇게 분리하면 6주차의 초기 테스트 코드와 10주차의 본 학습 코드를 비교하기 쉽고, 블로그 글에서도 실험 단계의 발전 과정을 명확히 설명할 수 있습니다.
+
+---
+
+## 2. 기존 코드에서 10주차 코드로 확장한 이유
+
+### 2-1. 기존 `week5_env_wrapper.py`의 역할
+
+기존 `week5_env_wrapper.py`에서는 커스텀 보상 함수를 구성했습니다. 보상은 크게 네 가지 항목으로 이루어져 있습니다.
+
+```text
+1. 속도 유지 보상
+2. 충돌 페널티
+3. 차선 변경 페널티
+4. 후방 차량 평균 속도 기반 Global Reward
+```
+
+기본 구조는 10주차에서도 그대로 유지했습니다. 다만 본 학습에서는 TensorBoard에 충돌률, 차선 변경 비율, 평균 속도 같은 지표를 따로 기록해야 하므로, `info`에 모니터링용 값을 추가로 담아주는 구조가 필요했습니다.
+
+### 2-2. 기존 `train.py`의 한계
+
+기존 `train.py`는 PPO 연결이 정상적으로 되는지 확인하는 테스트 코드였습니다.
+
+```python
+model.learn(total_timesteps=1000, progress_bar=True)
+```
+
+1000 step은 코드 실행 여부를 확인하기에는 충분하지만, 에이전트가 의미 있는 주행 정책을 학습하기에는 부족합니다. 따라서 10주차에서는 `train_week10_ppo.py`를 새로 만들고, 학습량을 `100_000 step` 이상으로 늘렸습니다.
+
+---
+
+## 3. `week10_env_wrapper.py`: 본 학습용 환경 Wrapper
+
+10주차에서 가장 먼저 추가한 파일은 `week10_env_wrapper.py`입니다. 이 파일은 기존 `week5_env_wrapper.py`를 기반으로 하되, 본 학습과 TensorBoard 모니터링에 맞게 확장한 환경 생성 파일입니다.
+
+핵심 변경점은 다음과 같습니다.
+
+```text
+1. render_mode를 선택 가능하게 변경
+2. Reward 가중치를 외부에서 조정 가능하게 변경
+3. TensorBoard 기록용 정보를 info에 추가
+4. 학습 중에는 렌더링을 끄고, 테스트할 때만 화면을 켤 수 있게 구성
+```
+
+### 3-1. render_mode 분리
+
+본 학습에서는 화면을 띄우지 않는 것이 좋습니다. `render_mode="human"`으로 화면을 계속 띄우면 학습 속도가 느려지기 때문입니다.
+
+따라서 10주차 환경 생성 함수에서는 다음처럼 `render_mode`를 외부에서 선택할 수 있게 만들었습니다.
+
+```python
+def create_phantom_jam_env(
+    render_mode=None,
+    enable_logging=False,
+    log_filename="logs/week10_training_log.csv",
+    reward_config=None,
+):
+    env = gym.make("highway-v0", render_mode=render_mode)
+```
+
+학습할 때는 다음처럼 사용합니다.
+
+```python
+env = create_phantom_jam_env(render_mode=None)
+```
+
+학습된 모델을 눈으로 확인할 때는 다음처럼 사용합니다.
+
+```python
+env = create_phantom_jam_env(render_mode="human")
+```
+
+---
+
+### 3-2. TensorBoard용 info 기록
+
+Stable-Baselines3의 Callback은 각 step에서 `info` 값을 읽을 수 있습니다. 따라서 10주차 Wrapper에서는 보상 계산 결과를 `info`에 넣어 Callback이 TensorBoard로 기록할 수 있게 했습니다.
+
+```python
+reward_info = {
+    "custom/speed_reward": r_speed,
+    "custom/collision_penalty": r_collision,
+    "custom/lane_change_penalty": r_lane_change,
+    "custom/global_reward": r_global,
+    "custom/ego_speed": ego_vehicle.speed,
+    "custom/avg_rear_speed": avg_rear_speed,
+    "custom/crashed": crashed,
+    "custom/is_lane_change": is_lane_change,
+    "custom/action": action,
+    "custom/total_reward": total_reward,
+}
+
+info.update(reward_info)
+```
+
+이 구조 덕분에 PPO의 기본 로그뿐 아니라, 우리가 직접 정의한 주행 지표도 TensorBoard에서 확인할 수 있습니다.
+
+---
+
+## 4. `train_week10_ppo.py`: PPO 본 학습 실행 파일
+
+두 번째로 추가한 파일은 `train_week10_ppo.py`입니다. 이 파일은 10주차의 핵심 학습 스크립트입니다.
+
+전체 역할은 다음과 같습니다.
+
+```text
+1. 2차선 학습 환경 생성
+2. PPO 모델 생성
+3. TensorBoard 로그 경로 설정
+4. 커스텀 Callback으로 주행 지표 기록
+5. 10,000 step마다 체크포인트 저장
+6. 최종 PPO 모델 저장
+```
+
+---
+
+### 4-1. PPO 학습 환경 생성
+
+본 학습에서는 렌더링을 끄고 환경을 생성합니다.
+
+```python
+reward_config = {
+    "w_speed": 1.0,
+    "w_col": 5.0,
+    "w_lane": 0.2,
+    "w_global": 1.5,
+    "target_speed": 25.0,
+}
+
+env = create_phantom_jam_env(
+    render_mode=None,
+    enable_logging=False,
+    reward_config=reward_config,
+)
+
+env = Monitor(env)
+```
+
+`Monitor`를 적용하면 Stable-Baselines3가 `rollout/ep_rew_mean`, `rollout/ep_len_mean` 같은 기본 학습 지표를 TensorBoard에 기록할 수 있습니다.
+
+---
+
+### 4-2. PPO 하이퍼파라미터 설정
+
+이번 본 학습에서는 기존 초기 테스트보다 rollout 길이를 늘렸습니다.
+
+```python
+model = PPO(
+    policy="MlpPolicy",
+    env=env,
+    learning_rate=3e-4,
+    n_steps=1024,
+    batch_size=64,
+    gamma=0.99,
+    gae_lambda=0.95,
+    clip_range=0.2,
+    ent_coef=0.01,
+    vf_coef=0.5,
+    policy_kwargs=policy_kwargs,
+    tensorboard_log="./logs/tensorboard/",
+    verbose=1,
+)
+```
+
+여기서 `n_steps=1024`는 한 번 정책을 업데이트하기 전에 1024 step만큼의 주행 경험을 모은다는 의미입니다. 기존 1000 step 테스트와 달리, 본 학습에서는 더 긴 rollout을 통해 정책을 안정적으로 업데이트하도록 했습니다.
+
+---
+
+### 4-3. 커스텀 지표 Callback
+
+10주차에서 중요한 부분은 `DrivingMetricsCallback`입니다. 이 Callback은 환경의 `info`에서 충돌 여부, 차선 변경 여부, 평균 속도를 읽어 TensorBoard에 기록합니다.
+
+```python
+self.logger.record("custom/collision_rate", collision_rate)
+self.logger.record("custom/lane_change_ratio", lane_change_ratio)
+self.logger.record("custom/avg_ego_speed", avg_ego_speed)
+self.logger.record("custom/avg_rear_speed", avg_rear_speed)
+```
+
+따라서 TensorBoard에서는 PPO 기본 지표 외에 다음 지표를 추가로 볼 수 있습니다.
+
+```text
+custom/collision_rate
+custom/lane_change_ratio
+custom/avg_ego_speed
+custom/avg_rear_speed
+```
+
+이 지표들은 단순히 보상이 올라갔는지 보는 것을 넘어, 에이전트가 실제로 안전하고 안정적인 주행을 학습하고 있는지 확인하는 데 사용됩니다.
+
+---
+
+### 4-4. 체크포인트 저장
+
+장시간 학습에서는 최종 모델 하나만 저장하면 위험합니다. 중간 모델이 더 좋은 성능을 보일 수도 있고, 학습 도중 문제가 생길 수도 있기 때문입니다.
+
+그래서 10주차 학습 파일에서는 `CheckpointCallback`을 사용했습니다.
+
+```python
+checkpoint_callback = CheckpointCallback(
+    save_freq=10_000,
+    save_path="./checkpoints/",
+    name_prefix="ppo_2lane_week10",
+)
+```
+
+이 설정에 따라 학습 중 다음과 같은 파일들이 저장됩니다.
+
+```text
+checkpoints/
+├── ppo_2lane_week10_10000_steps.zip
+├── ppo_2lane_week10_20000_steps.zip
+├── ppo_2lane_week10_30000_steps.zip
+└── ...
+```
+
+마지막에는 최종 모델도 따로 저장합니다.
+
+```python
+final_model_path = "models/ppo_2lane_week10_final"
+model.save(final_model_path)
+```
+
+---
+
+## 5. `test_week10_model.py`: 학습된 모델 테스트
+
+세 번째로 추가한 파일은 `test_week10_model.py`입니다. 이 파일은 본 학습으로 저장된 PPO 모델을 다시 불러와 실제 주행 화면을 확인하기 위한 테스트 파일입니다.
+
+```python
+model_path = "models/ppo_2lane_week10_final"
+model = PPO.load(model_path)
+```
+
+테스트할 때는 `render_mode="human"`으로 환경을 생성합니다.
+
+```python
+env = create_phantom_jam_env(
+    render_mode="human",
+    enable_logging=True,
+    log_filename="logs/week10_test_log.csv",
+)
+```
+
+이렇게 하면 학습 중에는 빠르게 학습하고, 학습이 끝난 뒤에는 화면으로 에이전트의 주행 패턴을 직접 확인할 수 있습니다.
+
+💡 info 테스트 파일의 역할
+TensorBoard 그래프만으로는 에이전트가 어떤 행동을 하는지 완전히 알 수 없습니다. 따라서 학습된 모델을 렌더링 환경에서 다시 실행해, 차선 변경을 남발하는지, 충돌을 피하는지, 두 차선을 물고 가는지 직접 확인해야 합니다.
+
+
+---
+
+## 6. 실행 방법
+
+### 6-1. 본 학습 실행
+
+```bash
+cd /Users/seojinkim/phantom-jam-rl/src
+source ../venv/bin/activate
+python train_week10_ppo.py
+```
+
+현재 `train_week10_ppo.py`는 시간 기준이 아니라 step 기준으로 학습합니다.
+
+```python
+model.learn(
+    total_timesteps=100_000,
+    tb_log_name="ppo_2lane_week10_main",
+    callback=[checkpoint_callback, metrics_callback],
+    progress_bar=True,
+)
+```
+
+즉, 이 코드는 무조건 3시간 동안 도는 것이 아니라 **100,000 step을 채우면 종료**됩니다. 3시간 내내 학습시키고 싶다면 `total_timesteps`를 더 크게 늘려야 합니다.
+
+```python
+# 예시
+300_000
+500_000
+1_000_000
+```
+
+---
+
+### 6-2. 백그라운드 실행
+
+학습을 오래 돌릴 때는 백그라운드 실행이 안전합니다.
+
+```bash
+nohup python train_week10_ppo.py > logs/week10_train.out 2>&1 &
+```
+
+실행 로그는 다음 명령어로 확인합니다.
+
+```bash
+tail -f logs/week10_train.out
+```
+
+---
+
+### 6-3. TensorBoard 실행
+
+학습을 `src` 폴더에서 실행했다면 TensorBoard도 `src` 폴더 기준으로 실행합니다.
+
+```bash
+cd /Users/seojinkim/phantom-jam-rl/src
+source ../venv/bin/activate
+tensorboard --logdir ./logs/tensorboard/
+```
+
+브라우저에서 다음 주소로 접속합니다.
+
+```text
+http://localhost:6006
+```
+
+---
+
+## 7. TensorBoard에서 확인한 그래프
+
+이번 실험에서는 TensorBoard를 이용해 PPO 학습 과정에서 기록되는 기본 지표와, 직접 추가한 custom 지표를 함께 확인했다. 먼저 전체 TensorBoard 화면을 통해 학습 로그가 정상적으로 기록되는지 확인한 뒤, 각 지표별 그래프를 따로 캡처하여 학습 상태를 분석했다.
+
+<div align="center">
+
+![TensorBoard Overview](/img/week10_tensor_board_view.png)
+
+<p><em>TensorBoard에서 PPO 학습 로그와 custom 지표를 확인한 전체 화면</em></p>
+
+</div>
+
+TensorBoard에서는 Stable-Baselines3가 기본으로 제공하는 `rollout`, `train`, `time` 지표뿐 아니라, 이번 주차에서 직접 추가한 `custom` 지표도 함께 확인할 수 있다. 이 중에서 이번 실험의 핵심은 에이전트의 평균 보상, 에피소드 길이, 충돌률, 차선 변경 비율, 그리고 후방 차량 평균 속도를 함께 보는 것이다.
+
+---
+
+### 7-1. `rollout/ep_rew_mean`
+
+가장 먼저 확인한 그래프는 `rollout/ep_rew_mean`이다.
+
+```text
+의미: 에피소드 평균 누적 보상
+블로그 역할: PPO 에이전트가 학습을 통해 보상 기준을 개선하고 있는지 확인
+```
+
+이 그래프는 이번 주차의 핵심 결과물이다. 보상이 초반에는 낮거나 불안정할 수 있지만, 학습이 진행되면서 장기적으로 상승하거나 일정 수준에서 안정화되는지 확인해야 한다.
+
+<div align="center">
+
+![Episode Reward](/img/week10_ep_rew_mean.png)
+
+<p><em>학습 과정에서 기록된 에피소드 평균 누적 보상</em></p>
+
+</div>
+
+`rollout/ep_rew_mean`은 에이전트가 한 에피소드 동안 받은 평균 보상을 의미한다. 값이 상승한다면, PPO 에이전트가 현재 보상 함수가 유도하는 방향으로 주행 정책을 개선하고 있다고 해석할 수 있다.
+
+다만 강화학습의 보상 곡선은 지도학습의 loss curve처럼 항상 매끄럽게 좋아지지 않는다. 탐험 과정에서 일시적으로 보상이 낮아질 수 있고, 특정 구간에서는 보상이 흔들릴 수 있다. 따라서 단일 step의 값보다 전체적인 추세를 보는 것이 중요하다.
+
+---
+
+### 7-2. `rollout/ep_len_mean`
+
+두 번째로 확인한 그래프는 `rollout/ep_len_mean`이다.
+
+```text
+의미: 에피소드 평균 길이
+블로그 역할: 에이전트가 얼마나 오래 주행을 유지했는지 보조적으로 확인
+```
+
+충돌이나 조기 종료가 자주 발생하면 에피소드 길이가 짧아질 수 있다. 따라서 `ep_len_mean`은 충돌률을 직접 보여주는 값은 아니지만, 학습 초반 상태를 해석하는 데 도움이 된다.
+
+<div align="center">
+
+![Episode Length](/img/week10_ep_len_mean.png)
+
+<p><em>학습 과정에서 기록된 에피소드 평균 길이</em></p>
+
+</div>
+
+`rollout/ep_len_mean`이 증가한다면 에이전트가 더 오래 주행을 유지하고 있다는 의미로 볼 수 있다. 반대로 값이 계속 낮게 유지된다면 충돌, 조기 종료, 또는 보상 설계 문제를 의심할 수 있다.
+
+이번 실험에서는 이 값을 `custom/collision_rate`와 함께 확인했다. 에피소드 길이가 짧고 충돌률이 높다면 에이전트가 아직 안정적인 주행 정책을 학습하지 못한 상태로 볼 수 있다. 반대로 에피소드 길이가 안정화되고 충돌률이 낮아진다면, 에이전트가 도로 상황에 더 잘 적응하고 있다고 판단할 수 있다.
+
+---
+
+### 7-3. `custom/collision_rate`
+
+세 번째로 확인한 그래프는 `custom/collision_rate`이다.
+
+```text
+의미: 전체 step 중 충돌이 발생한 비율
+블로그 역할: 에이전트가 안전한 정책을 학습하고 있는지 확인
+```
+
+이 그래프는 10주차에서 직접 추가한 `DrivingMetricsCallback`이 기록하는 값이다. 학습이 잘 진행된다면 시간이 지날수록 충돌률이 낮아지는 방향이 바람직하다.
+
+<div align="center">
+
+![Collision Rate](/img/week10_collision_rate.png)
+
+<p><em>학습 과정에서 기록된 충돌률 변화</em></p>
+
+</div>
+
+`custom/collision_rate`는 에이전트가 단순히 보상만 높이는 것이 아니라, 안전한 주행 정책을 함께 학습하고 있는지 확인하기 위한 지표이다. 평균 보상이 상승하더라도 충돌률이 함께 높다면 좋은 정책이라고 보기 어렵다.
+
+따라서 이 그래프는 반드시 `rollout/ep_rew_mean`과 함께 해석해야 한다. 예를 들어 보상은 상승하지만 충돌률이 유지되거나 증가한다면, 에이전트가 보상 함수의 일부만 만족하는 방향으로 학습했을 가능성이 있다. 이 경우 충돌 페널티 가중치인 `w_col`을 높이는 방식으로 reward shaping을 다시 수행할 수 있다.
+
+```text
+충돌률이 높게 유지되는 경우:
+w_col 증가
+→ 충돌 페널티 강화
+→ 안전 주행 유도
+```
+
+---
+
+### 7-4. `custom/lane_change_ratio`
+
+네 번째로 확인한 그래프는 `custom/lane_change_ratio`이다.
+
+```text
+의미: 전체 action 중 차선 변경 action 비율
+블로그 역할: 에이전트가 차선 변경을 남발하는지 확인
+```
+
+이 값은 낮을수록 무조건 좋은 것이 아니다. 너무 높으면 에이전트가 빠른 차선을 찾기 위해 좌우 차선을 반복적으로 이동하는 것이고, 너무 낮으면 필요한 차선 변경도 하지 않는 지나치게 보수적인 정책일 수 있다.
+
+<div align="center">
+
+![Lane Change Ratio](/img/week10_lane_change_ratio.png)
+
+<p><em>학습 과정에서 기록된 차선 변경 비율 변화</em></p>
+
+</div>
+
+`custom/lane_change_ratio`는 에이전트가 차선 변경 action인 `LANE_LEFT`, `LANE_RIGHT`를 얼마나 자주 선택했는지 보여준다. 이 지표를 통해 차선 변경 페널티가 적절한지, 또는 reward shaping이 추가로 필요한지 판단할 수 있다.
+
+차선 변경 비율이 지나치게 높다면 에이전트가 주변 교통 흐름을 고려하기보다 빠른 경로만 찾으려는 정책을 학습했을 가능성이 있다. 반대로 차선 변경 비율이 지나치게 낮다면 차선 변경 페널티가 너무 강해서, 필요한 상황에서도 차선을 바꾸지 않는 정책이 되었을 수 있다.
+
+```text
+차선 변경 비율이 너무 높은 경우:
+w_lane 증가
+→ 불필요한 차선 변경 억제
+
+차선 변경 비율이 너무 낮은 경우:
+w_lane 감소
+→ 필요한 차선 변경 허용
+```
+
+이번 프로젝트의 목표는 차선 변경을 완전히 막는 것이 아니라, 불필요한 차선 변경을 줄이면서 전체 교통 흐름을 안정적으로 유지하는 것이다. 따라서 `lane_change_ratio`는 단순히 낮은 값이 좋은 것이 아니라, 보상과 충돌률, 평균 속도와 함께 적정 수준으로 안정화되는지를 확인해야 한다.
+
+---
+
+### 7-5. `custom/avg_ego_speed`
+
+다섯 번째로 확인한 그래프는 `custom/avg_ego_speed`이다.
+
+```text
+의미: 에이전트 자신의 평균 속도
+블로그 역할: 에이전트가 지나치게 감속하거나 과속하지 않는지 확인
+```
+
+<div align="center">
+
+![Average Ego Speed](/img/week10_avg_ego_speed.png)
+
+<p><em>학습 과정에서 기록된 에이전트 평균 속도</em></p>
+
+</div>
+
+`custom/avg_ego_speed`는 PPO 에이전트 자신의 평균 속도를 나타낸다. 충돌 페널티가 너무 강하면 에이전트가 지나치게 감속하여 안전만 추구할 수 있으므로, 평균 속도 지표를 통해 에이전트가 적절한 속도를 유지하고 있는지 확인해야 한다.
+
+이 값이 너무 낮다면 에이전트가 충돌을 피하기 위해 보수적으로만 주행하고 있을 수 있다. 반대로 값이 지나치게 높다면 안전성보다 속도 보상에 치우친 정책을 학습했을 가능성이 있다.
+
+```text
+avg_ego_speed가 너무 낮은 경우:
+w_speed 증가 또는 w_col 완화 검토
+
+avg_ego_speed는 높지만 충돌률도 높은 경우:
+w_col 증가 필요
+```
+
+따라서 `avg_ego_speed`는 단독으로 해석하기보다 `collision_rate`, `ep_rew_mean`과 함께 분석해야 한다.
+
+---
+
+### 7-6. `custom/avg_rear_speed`
+
+마지막으로 확인한 그래프는 `custom/avg_rear_speed`이다.
+
+```text
+의미: 에이전트 후방 100m 안 차량들의 평균 속도
+블로그 역할: 에이전트가 후방 차량 흐름에도 긍정적인 영향을 주는지 확인
+```
+
+<div align="center">
+
+![Average Rear Speed](/img/week10_avg_rear_speed.png)
+
+<p><em>학습 과정에서 기록된 후방 차량 평균 속도</em></p>
+
+</div>
+
+`custom/avg_rear_speed`는 에이전트 뒤쪽 차량들의 평균 속도를 나타낸다. 이번 프로젝트의 목표는 에이전트 한 대가 빠르게 달리는 것이 아니라, 후방 차량의 급감속과 정체 파동을 줄이는 것이다. 따라서 이 지표는 PPO 에이전트가 전체 교통 흐름 개선에 기여하는지 판단하기 위한 중요한 보조 지표이다.
+
+만약 `avg_ego_speed`는 높지만 `avg_rear_speed`가 낮다면, 에이전트가 자기 차량의 속도만 높이고 후방 차량 흐름은 개선하지 못하고 있을 수 있다. 반대로 `avg_rear_speed`가 유지되거나 상승한다면, 에이전트의 주행 정책이 후방 차량 흐름에도 긍정적인 영향을 줄 가능성이 있다.
+
+```text
+avg_ego_speed 상승 + avg_rear_speed 유지 또는 상승
+→ 에이전트와 후방 차량 흐름이 함께 개선되는 방향
+
+avg_ego_speed 상승 + avg_rear_speed 하락
+→ 에이전트가 자기 속도만 최적화했을 가능성
+```
+
+이 경우 후방 차량 흐름 보상인 `w_global`을 조정하여 에이전트가 자기 차량뿐 아니라 주변 교통 흐름까지 고려하도록 유도할 수 있다.
+
+---
+
+### 7-7. 그래프 해석 기준
+
+이번 TensorBoard 결과는 단일 그래프만 보고 판단하지 않고, 여러 지표를 함께 해석해야 한다.
+
+```text
+rollout/ep_rew_mean 상승
+→ 보상 함수 기준으로 정책이 개선되는지 확인
+
+rollout/ep_len_mean 증가 또는 안정화
+→ 충돌 없이 더 오래 주행하는지 간접 확인
+
+custom/collision_rate 감소
+→ 안전성이 개선되는지 확인
+
+custom/lane_change_ratio 안정화
+→ 불필요한 차선 변경이 줄어드는지 확인
+
+custom/avg_ego_speed 유지
+→ 에이전트가 지나치게 감속하지 않는지 확인
+
+custom/avg_rear_speed 유지 또는 상승
+→ 후방 차량 흐름이 개선되는지 확인
+```
+
+따라서 이번 주차의 TensorBoard 모니터링은 단순히 학습이 실행되는지 확인하는 단계가 아니라, PPO 에이전트가 보상 함수의 의도에 맞는 주행 정책을 학습하고 있는지 정량적으로 점검하는 과정이다.
+
+---
+
+## 8. Reward Shaping 기준
+
+TensorBoard와 렌더링 테스트를 함께 보면서 에이전트의 행동이 이상할 경우 보상 가중치를 조정합니다.
+
+보상 가중치는 `train_week10_ppo.py`의 `reward_config`에서 조정합니다.
+
+```python
+reward_config = {
+    "w_speed": 1.0,
+    "w_col": 5.0,
+    "w_lane": 0.2,
+    "w_global": 1.5,
+    "target_speed": 25.0,
+}
+```
+
+### 8-1. 차선 변경을 너무 많이 하는 경우
+
+```python
+"w_lane": 0.2
+```
+
+위 값을 다음처럼 올립니다.
+
+```python
+"w_lane": 0.4
+```
+
+차선 변경 페널티를 높이면 불필요한 차선 변경을 줄일 수 있습니다.
+
+### 8-2. 충돌률이 높은 경우
+
+```python
+"w_col": 5.0
+```
+
+위 값을 다음처럼 올립니다.
+
+```python
+"w_col": 7.0
+```
+
+다만 충돌 페널티를 너무 크게 주면 에이전트가 지나치게 느리게 가는 정책을 학습할 수 있으므로, `custom/avg_ego_speed`도 함께 확인해야 합니다.
+
+### 8-3. 자기만 빠르게 가는 경우
+
+```python
+"w_global": 1.5
+```
+
+위 값을 다음처럼 올립니다.
+
+```python
+"w_global": 2.0
+```
+
+이렇게 하면 에이전트가 자신의 속도뿐 아니라 후방 차량의 평균 속도도 더 중요하게 고려하게 됩니다.
+
+---
+
+## 9. 기대 결과물
+
+10주차 실험을 정상적으로 실행하면 다음과 같은 결과물이 생성됩니다.
+
+```text
+models/
+└── ppo_2lane_week10_final.zip
+
+checkpoints/
+├── ppo_2lane_week10_10000_steps.zip
+├── ppo_2lane_week10_20000_steps.zip
+├── ppo_2lane_week10_30000_steps.zip
+└── ...
+
+logs/
+├── tensorboard/
+├── week10_train.out
+└── week10_test_log.csv
+```
+
+이 중 블로그에 직접적으로 넣을 결과물은 TensorBoard 캡처 이미지와 최종 모델 저장 경로입니다.
+
+```text
+TensorBoard 캡처 이미지:
+1. rollout/ep_rew_mean
+2. rollout/ep_len_mean
+3. custom/collision_rate
+4. custom/lane_change_ratio
+5. custom/avg_ego_speed + custom/avg_rear_speed
+
+모델 체크포인트:
+models/ppo_2lane_week10_final.zip
+checkpoints/ppo_2lane_week10_xxxxx_steps.zip
+```
+
+---
+
+## 10. 이번 주차 정리
+
+이번 10주차에서는 PPO 본 학습을 위해 기존 초기 테스트용 코드와 별도로 세 개의 파일을 추가했습니다.
+
+```text
+week10_env_wrapper.py
+→ 본 학습용 환경 Wrapper, Reward 정보 기록, render_mode 분리
+
+train_week10_ppo.py
+→ PPO 본 학습 실행, TensorBoard 로그 기록, 체크포인트 저장
+
+test_week10_model.py
+→ 학습된 모델 로드 후 실제 주행 화면 테스트
+```
+
+TensorBoard에서는 먼저 `rollout/ep_rew_mean`, `rollout/ep_len_mean`, `time/fps`를 확인했습니다. 이후 학습 step이 충분히 쌓이면 `custom/collision_rate`, `custom/lane_change_ratio`, `custom/avg_ego_speed`, `custom/avg_rear_speed`까지 확인하여 에이전트가 안전하고 안정적인 주행 정책을 학습하고 있는지 분석할 수 있습니다.
+
+💡 info 이번 주차 핵심 성과
+PPO 본 학습 파일을 분리하고, TensorBoard에서 기본 학습 지표와 커스텀 주행 지표를 함께 확인할 수 있는 실험 구조를 구축했습니다.
+
+---
+
+## 11. 다음 단계
+
+다음 단계에서는 이번 주차에서 학습한 PPO 모델을 실제 평가용 시뮬레이션에 다시 로드하여, 학습된 에이전트가 교통 흐름 개선에 어떤 영향을 주는지 정량적으로 분석할 예정이다. 단순히 에이전트의 주행 영상을 확인하는 것을 넘어서, 도로 내 자율주행 에이전트의 침투율을 다르게 설정하고 각 조건에서 평균 속도와 통행량이 어떻게 달라지는지 비교한다.
+
+이번 평가의 핵심은 **침투율별 성능 비교**이다. 여기서 침투율이란 전체 차량 중 PPO 정책을 따르는 자율주행 에이전트의 비율을 의미한다. 예를 들어 침투율 0%는 모든 차량이 기존 IDM/MOBIL 기반 차량으로만 구성된 Baseline이며, 5%와 10%는 일부 차량이 학습된 PPO 정책을 사용하도록 설정한 실험 조건이다.
+
+```text
+다음 실험 목표:
+학습된 PPO 모델 로드
+→ 침투율 0%, 5%, 10% 시나리오 구성
+→ 각 시나리오별 다수 에피소드 반복 실행
+→ 전체 차량 평균 속도 계산
+→ 통과 차량 수(Throughput) 계산
+→ Pandas를 이용해 CSV 데이터셋으로 정리
