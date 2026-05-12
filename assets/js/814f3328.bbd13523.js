@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkphantom_jam_blog=self.webpackChunkphantom_jam_blog||[]).push([["833"],{5513(e){e.exports=JSON.parse('{"title":"Recent posts","items":[]}')}}]);
